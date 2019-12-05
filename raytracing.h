@@ -39,15 +39,6 @@ private:
 			for (const auto& obj : bh_poly::ObjectManager::objectArray) {
 				if (obj->isCurved) {
 					if (((Sphere*)obj)->doesIntersect(ray.position[i], ray.position[i + 1])) {
-						/*
-						double rank = distanceBetweenLineSegmentAndPoint(ray.position[i], ray.position[i+1], ((Sphere*)obj)->pos);
-						if(rank < 0)
-							continue;
-						if (rank <= ((Sphere*)obj)->radius)
-							rank = 0;
-						else
-							rank -= ((Sphere*)obj)->radius;
-							*/
 						double rank = distanceBetweenLineSegmentAndPoint(ray.position[i], ray.position[i + 1], ((Sphere*)obj)->pos);
 						const double radius = ((Sphere*)obj)->radius;
 						if (rank > radius)

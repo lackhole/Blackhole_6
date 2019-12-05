@@ -53,6 +53,9 @@ clock_t t_begin = clock();
 #define G(b, u)				( (u)*(u)*(2.*M*(u) - 1.) + 1. / ((b)*(b)) )
 #define FUNC(b, u)			(1. / sqrt((u)*(u)*(M2*(u) - 1.) + 1. / ((b) * (b))))
 
+const double pi = 3.141592653589793238462643383279502884197169399375105820974944;
+
+void btncbf(int event, int x, int y, int flags, void* userdata);
 double findSolutionBinary(const double b) {
 	// y = 2Mx^2 - x^2 + 1/b^2
 	static const double dx = 0.0000001;
@@ -84,11 +87,10 @@ double findSolutionBinary(const double b) {
 int main(void) {
 	cout << "Program Started" << endl;
 
-
-	const double pi = 3.141592653589793238462643383279502884197169399375105820974944;
+	// Object Manager handles objects
 	ObjectManager& objectManager = bh_poly::ObjectManager::getInstance();
 
-
+	// Folder name as current time
 	std::string cur_time = std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
 
 
@@ -165,21 +167,18 @@ int main(void) {
 
 	Collision collision_info;
 
-
+	// Image set to Black
 	const int screen_w = 1600 / 2, screen_h = 900 / 2;
 	cv::Mat3b image(screen_h, screen_w, CV_8UC3);
+	image = cv::Vec3b(0, 0, 0);
 
-
-
+	// Create directories
 	_mkdir(("C:/Users/cosge/Desktop/blackhole/" + cur_time).c_str());
 	_mkdir(("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/video").c_str());
 	_mkdir(("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/image").c_str());
 	cv::VideoWriter out_capture("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/video/video.avi", CV_FOURCC('M', 'J', 'P', 'G'), 29, cv::Size(screen_w, screen_h), true);
 	
-
-	image = cv::Vec3b(0, 0, 0);
-
-	//world_time += 0.001 * 57;
+	
 
 	clock_t begin = clock();
 
@@ -187,6 +186,12 @@ int main(void) {
 	Vector4 cameraLookat(0, 0, 0);
 	double fovy = 3.14159265 / 40.;
 	double h = screen_w / (2. * tan(fovy / 2.));
+	/*
+		Lookup table that stores ray's traces if realative position between camera and the blackhole is fixed through time.
+		Current camera is fixed in y - axis.
+		Do not change x or z value.
+		Only change y value for fast calculations.
+	*/
 	Ray** ray_lookups = 0;
 	{
 		ray_lookups = (Ray**)calloc(screen_h, sizeof(Ray*));
@@ -211,15 +216,15 @@ int main(void) {
 	for (int px_h = 0; px_h < screen_h; ++px_h) {
 		for (int px_w = 0; px_w < screen_w; ++px_w) {
 
+			// lookup ray for each pixels
 			Ray* ray = &ray_lookups[px_h][px_w];
 			ray->setInit(cameraFocus);
 			ray->buildLookup_test(nstep);
 
-
-
+			// direction of the pixel
 			Vector4 pixelPoint = (cameraFocus + Vector4(screen_w / 2. - px_w + 0.5, -h, screen_h / 2. - px_h + 0.5));
 
-
+			// normalized unit vector
 			Vector4 x_v, y_v, z_v;
 			y_v = (cameraFocus - pixelPoint).Normalize3();
 			z_v = (pixelPoint.Product(y_v)).Normalize3();
@@ -228,7 +233,7 @@ int main(void) {
 			}
 			x_v = y_v.Product(z_v).Normalize3();
 
-
+			// conversion matrix for new coordinates
 			Matrix4 matrix_reconversion = Matrix4(
 				z_v[0], y_v[0], x_v[0],
 				z_v[1], y_v[1], x_v[1],
@@ -238,7 +243,11 @@ int main(void) {
 			Vector4 convertedCameraFocus = matrix_conversion * cameraFocus;
 			Vector4 convertedPixel = matrix_conversion * pixelPoint;
 
-
+			/*
+				b         |   impact parameter
+				sol       |   solution for motion equation
+				periapsis |   periapsis(1/3M for non-solvable)
+			*/
 			const double b = convertedCameraFocus[2];
 			const double sol = findSolutionBinary(b);
 			const double periapsis = sol > 0 ? sol : 1. / (3 * M);//1./diameter;//1E+300;
@@ -269,7 +278,7 @@ int main(void) {
 
 			register double time_local = world_time;
 
-
+			// trapezoid integration
 			for (register int i = 0; i < nstep_safe; ++i) {
 				u += du;
 				dphi = FUNC(b, u);
@@ -346,11 +355,12 @@ int main(void) {
 				Ray* ray = &ray_lookups[px_h][px_w];
 				if (ray->builded) {
 					for (int i = 0; i < buffer_count - 1; ++i)
+						// add time
 						ray->position[i].elem[3] += world_time;
 					collision_info = ray->calcRemains();
 					if (collision_info.collided) {
+						// copy texture data to pixel
 						memcpy(image.data + ((int)px_h * screen_w + px_w) * 3, collision_info.object->GetPixel(collision_info.point).val, sizeof(uchar) * 3);
-						//image.at<cv::Vec3b>(px_h, px_w) = collision_info.object->GetPixel(collision_info.point);
 					}
 					continue;
 				}
@@ -427,7 +437,6 @@ int main(void) {
 					collision_info = ray->prograde(matrix_conversion * lightVector);
 					if (collision_info.collided) {
 						memcpy(image.data + ((int)px_h * screen_w + px_w)*3, collision_info.object->GetPixel(collision_info.point).val, sizeof(uchar) * 3);
-						//image.at<cv::Vec3b>(px_h, px_w) = collision_info.object->GetPixel(collision_info.point);
 						goto ENDLOOP;
 					}
 
@@ -436,7 +445,6 @@ int main(void) {
 				collision_info = ray->calcRemains();
 				if (collision_info.collided) {
 					memcpy(image.data + ((int)px_h * screen_w + px_w) * 3, collision_info.object->GetPixel(collision_info.point).val, sizeof(uchar) * 3);
-					//image.at<cv::Vec3b>(px_h, px_w) = collision_info.object->GetPixel(collision_info.point);
 					goto ENDLOOP;
 				}
 
@@ -456,7 +464,6 @@ int main(void) {
 					collision_info = ray->prograde(matrix_conversion * lightVector);
 					if (collision_info.collided) {
 						memcpy(image.data + ((int)px_h * screen_w + px_w) * 3, collision_info.object->GetPixel(collision_info.point).val, sizeof(uchar) * 3);
-						//image.at<cv::Vec3b>(px_h, px_w) = collision_info.object->GetPixel(collision_info.point);
 						goto ENDLOOP;
 					}
 
@@ -465,7 +472,6 @@ int main(void) {
 				collision_info = ray->calcRemains();
 				if (collision_info.collided) {
 					memcpy(image.data + ((int)px_h * screen_w + px_w) * 3, collision_info.object->GetPixel(collision_info.point).val, sizeof(uchar) * 3);
-					//image.at<cv::Vec3b>(px_h, px_w) = collision_info.object->GetPixel(collision_info.point);
 					goto ENDLOOP;
 				}
 
@@ -489,10 +495,11 @@ int main(void) {
 		cv::imwrite("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/image/" + "t=" + std::to_string(time) + ".jpg", image);
 		cout << "Writed: " << time << ", elapsed time: " << ((double)clock() - (double)begin_image) / 1000. << "s" << endl;
 
-		//cv::imwrite("t=" + std::to_string(time) + ".jpg", image);
+		// write to video
 		out_capture.write(image);
 
 		cv::imshow("test2", image);
+		cv::setMouseCallback("test2", btncbf);
 		cv::waitKey(50);
 
 		world_time += 0.000001;
