@@ -3,11 +3,7 @@
 #include <iostream>
 #include <math.h>
 
-#include <direct.h>
-
-#include "opencv2\highgui\highgui.hpp" 
-#include "opencv2\core\core.hpp" 
-#include "opencv2\opencv.hpp"
+#include "opencv2/opencv.hpp"
 
 #include "singleton.h"
 
@@ -76,10 +72,10 @@ public:
 			}
 		}
 
-		_mkdir(directory.c_str());
-		_mkdir((directory + this->seperator.WinOS + outFolder).c_str());
-		_mkdir((directory + this->seperator.WinOS + outFolder + seperator.WinOS + outDirectory_image).c_str());
-		_mkdir((directory + this->seperator.WinOS + outFolder + seperator.WinOS + outDirectory_video).c_str());
+//		_mkdir(directory.c_str());
+//		_mkdir((directory + this->seperator.WinOS + outFolder).c_str());
+//		_mkdir((directory + this->seperator.WinOS + outFolder + seperator.WinOS + outDirectory_image).c_str());
+//		_mkdir((directory + this->seperator.WinOS + outFolder + seperator.WinOS + outDirectory_video).c_str());
 	}
 
 };

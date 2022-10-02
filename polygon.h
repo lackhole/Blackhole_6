@@ -4,9 +4,7 @@
 #include <math.h>
 #include <vector>
 
-#include "opencv2\highgui\highgui.hpp" 
-#include "opencv2\core\core.hpp" 
-#include "opencv2\opencv.hpp"
+#include "opencv2/opencv.hpp"
 
 #include "matrix.h"
 #include "physics.h"
@@ -323,7 +321,7 @@ namespace bh_poly {
 		}
 
 
-		int SetTexture(const std::string& path, int flag) {
+		int SetTexture(const std::string& path, int flag = cv::IMREAD_COLOR) {
 			return material.setTexture(path, flag);
 		}
 

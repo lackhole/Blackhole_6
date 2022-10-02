@@ -4,20 +4,13 @@
 #include <cmath>
 #include <ctime>
 #include <chrono>
-#include <time.h>
-#include <Windows.h>
-#include <direct.h>
+#include <cstring>
 #include <algorithm>
+#include <filesystem>
 
+#include "opencv2/opencv.hpp"
 
-#include "opencv2\highgui\highgui.hpp" 
-#include "opencv2\core\core.hpp" 
-#include "opencv2\imgcodecs\imgcodecs.hpp" 
-#include "opencv2\opencv.hpp"
-#include "opencv\cv.h"
-#include "opencv\cvaux.h"
-#include "opencv\cxcore.h"
-
+#include "config.h"
 #include "properties.h"
 #include "matrix.h"
 #include "polygon.h"
@@ -25,23 +18,28 @@
 #include "physics.h"
 #include "camera.h"
 
+#define STRINGIFY_IMPL(x) #x
+#define STRINGIFY(x) STRINGIFY_IMPL(x)
+
+#define kPWD STRINGIFY(PWD)
+
 /*
  coordinate system
 
-		   z theta
-                    |__   /
-                    |  \_/
+                    z theta
+                    |__  /
+                    |  \/
                     |  /\
                     | /  v_* P
                     |/ _/''|
 --------------------+-/-r--|----- y
-		   /|\     |
-		  / | \    |
-		 /  |  \   |
-		/---+-->\  |
+                   /|\     |
+                  / | \    |
+                 /  |  \   |
+                /---+-->\  |
                / phi|    \ |
               /     |     \|
-                    x
+             x
 */
 
 clock_t t_begin = clock();
@@ -85,14 +83,15 @@ double findSolutionBinary(const double b) {
 }
 
 int main(void) {
+  namespace fs = std::filesystem;
+  namespace chrono = std::chrono;
 	cout << "Program Started" << endl;
 
 	// Object Manager handles objects
 	ObjectManager& objectManager = bh_poly::ObjectManager::getInstance();
 
 	// Folder name as current time
-	std::string cur_time = std::to_string(std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()));
-
+	const auto cur_time = std::to_string(chrono::system_clock::to_time_t(chrono::system_clock::now()));
 
 	bh_poly::Rectangle rect(
 		1000, 0, 1000,
@@ -133,20 +132,30 @@ int main(void) {
 	//ball.pos = Matrix4::rotateAroundAxis(vec_ball_norm, (pi / 360) * 60)*ball.pos;
 	ball.pos = Matrix4::rotateAroundAxis(vec_ball_norm, (pi / 360) * 0) * ball.pos;
 
+  bh_poly::Rectangle background(
+      2000, -2000, 2000,
+      -2000, -2000, 2000,
+      -2000, -2000, -2000,
+      2000, -2000, -2000
+      );
 
-
+  background.setColor({0, 0, 0});
+//	background.SetTexture("/Users/yonggyulee/Downloads/dsp.jpg");
 	//rect.SetTexture("C:/Users/cosge/Desktop/white.png", cv::IMREAD_UNCHANGED);
-	disc.SetTexture("C:/Users/cosge/Desktop/accretiondisk.jpg", cv::IMREAD_COLOR);
-	rect.setColor(cv::Vec3b(255, 0, 0));
-	rect2.setColor(cv::Vec3b(0, 255, 0));
+//	disc.setColor({0,0,180});
+	disc.SetTexture(std::string(kPWD) + "/resource/acc_disc.png");
+//	disc.SetTexture("/Users/yonggyulee/Downloads/Abell-39.jpg");
+//	rect.setColor(cv::Vec3b(255, 0, 0));
+//	rect2.setColor(cv::Vec3b(0, 255, 0));
 	//rect3.setColor(cv::Vec3b(0 , 0, 255));
-	rect3.SetTexture("C:/Users/cosge/Desktop/accretiondisk.jpg", cv::IMREAD_COLOR);
+//	rect3.SetTexture("C:/Users/cosge/Desktop/accretiondisk.jpg", cv::IMREAD_COLOR);
 	//rect.setColor(cv::Vec3b(255, 0, 0));
-	acc_disk.SetTexture("C:/Users/cosge/Desktop/accretiondisk.jpg", cv::IMREAD_COLOR);
+//	acc_disk.SetTexture("C:/Users/cosge/Desktop/accretiondisk.jpg", cv::IMREAD_COLOR);
 
+    objectManager.insertObject(background);
 	objectManager.insertObject(disc);
-	//objectManager.insertObject(rect);
-	//objectManager.insertObject(rect2);
+//	objectManager.insertObject(rect);
+//	objectManager.insertObject(rect2);
 	//objectManager.insertObject(rect3);
 	//objectManager.insertObject(ball);
 	//objectManager.insertObject(acc_disk);
@@ -158,7 +167,7 @@ int main(void) {
 
 	};
 
-	disc.Rotate(-0.1, 0, 0);
+	disc.Rotate(-0.01, 0, 0);
 	//rect.Move(0, 10, 0);
 	rect2.Rotate(0, 0, 0.1);
 	rect.Rotate(0, 0.1, 0);
@@ -173,10 +182,12 @@ int main(void) {
 	image = cv::Vec3b(0, 0, 0);
 
 	// Create directories
-	_mkdir(("C:/Users/cosge/Desktop/blackhole/" + cur_time).c_str());
-	_mkdir(("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/video").c_str());
-	_mkdir(("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/image").c_str());
-	cv::VideoWriter out_capture("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/video/video.avi", CV_FOURCC('M', 'J', 'P', 'G'), 29, cv::Size(screen_w, screen_h), true);
+  const auto base_path = fs::path(kPWD)/"output"/cur_time;
+
+  fs::create_directories(base_path/"video");
+  fs::create_directories(base_path/"image");
+	cv::VideoWriter out_capture((base_path/"video/video.avi").string(),
+                              cv::VideoWriter::fourcc('M', 'J', 'P', 'G'), 29, cv::Size(screen_w, screen_h), true);
 	
 	
 
@@ -347,7 +358,7 @@ int main(void) {
 	SKIP_LOOKUP:
 	for (int time = 0; time < 360; ++time) {
 		clock_t begin_image = clock();
-		image = cv::Vec3b(0, 0, 0);
+    std::memset(image.data, 0, image.rows * image.cols * 3);
 
 
 		for (int px_h = 0; px_h < screen_h; ++px_h) {
@@ -417,11 +428,9 @@ int main(void) {
 					lightVector = convertedCameraFocus,
 					lightVector_prev = convertedCameraFocus;
 
-				register double time_local = world_time;
-
-
-
-				for (register int i = 0; i < nstep_safe; i++) {
+				double time_local = world_time;
+				
+				for (int i = 0; i < nstep_safe; i++) {
 					u += du;
 					dphi = FUNC(b, u);
 
@@ -481,8 +490,8 @@ int main(void) {
 			}
 
 			if (px_h % 50 == 0) {
-				//cv::imshow("test2", image);
-				//cv::waitKey(1);
+//				cv::imshow("test2", image);
+//				cv::waitKey(1);
 				std::cout << "\r" << px_h + 1 << "/" << screen_h;
 			}
 
@@ -492,23 +501,25 @@ int main(void) {
 		std::vector<int> comp;
 		comp.push_back(cv::IMWRITE_PNG_COMPRESSION);
 		comp.push_back(9);
-		cv::imwrite("C:/Users/cosge/Desktop/blackhole/" + cur_time + "/image/" + "t=" + std::to_string(time) + ".jpg", image);
-		cout << "Writed: " << time << ", elapsed time: " << ((double)clock() - (double)begin_image) / 1000. << "s" << endl;
+//		cv::imwrite(std::string(kPWD) + "/" + cur_time + "/image/" + "t=" + std::to_string(time) + ".jpg", image);
+		cout << "Writed: " << time << ", elapsed time: " << ((double)clock() - (double)begin_image) / CLOCKS_PER_SEC << "s" << endl;
 
 		// write to video
 		out_capture.write(image);
 
-		cv::imshow("test2", image);
-		cv::setMouseCallback("test2", btncbf);
-		cv::waitKey(50);
+    cv::putText(image, std::string("T= ") + std::to_string(world_time), {5, 10}, cv::FONT_HERSHEY_PLAIN, 1, {0, 200, 0}, 1);
+    cv::putText(image, std::string("Rendering= ") + std::to_string(((double)clock() - (double)begin_image) / CLOCKS_PER_SEC * 1000) + "ms", {5, 20}, cv::FONT_HERSHEY_PLAIN, 1, {0, 200, 0}, 1);
+		cv::imshow("Blackhole: Ray-Tracing C++", image);
+//		cv::setMouseCallback("Blackhole: Ray-Tracing C++", btncbf);
+		if(cv::waitKey(1) == 27) break;
 
 		world_time += 0.000001;
 		//ball.pos = Matrix4::rotateAroundAxis(vec_ball_norm, (pi / 180) * 1) * ball.pos;
 		//ball.Move(Vector4(-5,0,0));
-		disc.Rotate(-(pi / 180.), 0, 0);
+		disc.Rotate(-(pi / 1800.), 0, 0);
 
 	}
-	cout << "Time: " << ((double)clock() - (double)begin) / 1000. << "s" << endl;
+	cout << "Time: " << ((double)clock() - (double)begin) / CLOCKS_PER_SEC << "s" << endl;
 
 	return 0;
 }
