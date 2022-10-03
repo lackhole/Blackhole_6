@@ -1,0 +1,34 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get Processor count
+        run: |
+          echo "Count: `grep -c ^processor /proc/cpuinfo`"
+          echo "JOB_NUM=`grep -c ^processor /proc/cpuinfo`" >> $GITHUB_ENV
+
+      - name: Install OpenCV
+        run: |
+          sudo apt update && sudo apt install -y cmake g++ wget unzip cmake
+          wget -O opencv.zip https://github.com/opencv/opencv/archive/4.x.zip
+          unzip opencv.zip
+          mkdir -p build-opencv && cd build-opencv
+          cmake ../opencv-4.x
+          cmake --build . -- -j ${{ env.JOB_NUM }}
+          sudo make install
+
+      - name: Configure Project
+        run: cmake -B ${{github.workspace}}/build
+
+      - name: Build Project
+        run: cmake --build ${{github.workspace}}/build -- -j ${{ env.JOB_NUM }}
