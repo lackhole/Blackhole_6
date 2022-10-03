@@ -2,7 +2,6 @@
 
 #include <math.h>
 #include <iostream>
-#include <Windows.h>
 
 namespace BH_MATRIX {
 	typedef double e_type;
